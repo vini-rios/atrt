@@ -21,13 +21,19 @@ if (project == "PRJNA565377") {
       data,
       into = c("drop1",
                "treatment",
-               "drop2",
-               "drop3"),
+               "drop2"),
       sep = ","
     ) %>%
-    dplyr::select(-drop1, -drop2, -drop3) %>%
-    mutate(project = "PRJNA565377")
+    dplyr::select(-drop1, -drop2) %>%
+    mutate(project = "PRJNA565377") %>%
+    mutate(sample = str_sub(treatment, start= -1)) %>%
+    mutate(treatment = case_when(
+      str_starts(treatment, " mithramycin 8h") ~ "MMA_8h",
+      str_starts(treatment, " mithramycin 18h") ~ "MMA_18h",
+      TRUE ~ "Sol"
+    ))
 
+  print(meta_data)
   write_tsv(meta_data, file = "data/PRJNA565377.metadata.clean")
 
 } else if (project == "PRJNA427332") {
