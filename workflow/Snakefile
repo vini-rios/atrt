@@ -31,7 +31,7 @@ rule all:
             for project in PROJECT
             for target in get_all_quantification_outputs(project)
         ],
-        #expand(os.path.join(OUTPUT_DIR, "{project}.metadata.clean"), project=PROJECT),
+        expand(os.path.join(OUTPUT_DIR, "{project}.metadata.clean"), project=PROJECT),
 
 
 rule get_fastq_list:
