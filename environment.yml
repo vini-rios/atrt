@@ -1,0 +1,22 @@
+name: atrt
+
+channels:
+- conda-forge
+- bioconda
+
+dependencies:
+- python
+- snakemake
+- quarto
+- ipykernel
+- r-base
+- r-essentials
+- r-pheatmap
+- r-languageserver
+- radian 
+- r-httpgd
+- r-tidyverse
+- bioconductor-genomicfeatures
+- bioconductor-deseq2
+- bioconductor-txdbmaker
+- bioconductor-tximport

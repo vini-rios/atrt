@@ -1,0 +1,7 @@
+name: quarto-report
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python
+  - snakemake

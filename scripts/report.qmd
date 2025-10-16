@@ -1,0 +1,616 @@
+---
+title: "Automated RNA-seq analysis of project `{r} params$project`"
+author: "Vinicius M. Rios"
+date: last-modified
+format: 
+  html:
+    grid:
+      body-width: 1000px
+    toc: true
+    code-fold: false
+    code-tools: true
+    theme: spacelab
+execute:
+  warning: false
+  cache: refresh
+  execute-dir: project
+  echo: false
+params:
+  project: "PRJNA427332"
+---
+
+
+## 1. Introduction
+
+
+
+------------------------------------------------------------------------
+
+## 2. General statistics 
+
+```{r delete_for_final_version}
+#| echo: false
+# Just to run in Vs-code, remove later
+# params<-list(project= "PRJNA427332", zero=0)
+# params<-list(project= "PRJNA376873", zero=0)
+
+```
+
+```{r load_libraries}
+library(tidyverse)
+library(GenomicFeatures)
+library(txdbmaker)
+library(tximport)
+library(DESeq2)
+library(org.Hs.eg.db)
+library(RColorBrewer)
+library(pheatmap)
+library(patchwork)
+library(ComplexUpset)
+```
+
+
+```{r get_files_path}
+files_path <- list.files(paste0("results/quantification/salmon/", params$project),
+  pattern = "quant.sf",
+  recursive = TRUE,
+  full.names = TRUE)
+
+files_names <- dirname(files_path) %>%
+  basename()
+
+names(files_path) <- files_names
+
+```
+
+There are `{r} length(files_path)` files in the project `{r} params$project`.
+
+
+```{r get_tx2gene}
+gtf <- "references/homo_sapiens.gtf.gz"
+
+txdb <- txdbmaker::makeTxDbFromGFF(gtf)
+
+k <- biomaRt::keys(txdb, keytype = "TXNAME")
+
+tx2gene <- biomaRt::select(txdb,
+  keys = k,
+  columns = "GENEID",
+  keytype = "TXNAME")
+
+colnames(tx2gene) <- c("TXNAME", "GENEID")
+
+```
+
+```{r tximport}
+txi <- tximport(
+  files = files_path,
+  type = "salmon",
+  tx2gene = tx2gene,
+  countsFromAbundance = "lengthScaledTPM",
+  ignoreTxVersion = TRUE
+)
+```
+
+A total of `{r} prettyNum(nrow(tx2gene), big.mark = ",")` transcripts were mapped to `{r} prettyNum(nrow(txi$counts),big.mark = ",")` genes.
+
+```{r get_metadata}
+metadata <- readr::read_tsv(paste0("data/", params$project, ".metadata.clean"))
+```
+
+```{r DESeqDataSet}
+dds <- DESeqDataSetFromTximport(
+  txi = txi,
+  colData = metadata,
+  design = ~ treatment  
+)
+```
+
+```{r library_barplot}
+#| fig-width: 16
+#| fig-height: 6
+library_sizes <- colSums(assay(dds))
+
+library_df <- data.frame(Library_Size = library_sizes) %>%
+  rownames_to_column(.) %>%
+  left_join(x=., y = metadata, by = c("rowname" = "run_accession")) %>%
+  mutate(sample_treatment = paste(sample,treatment))
+
+ggplot(data = library_df,
+       mapping = aes(x = rowname,
+                     y = Library_Size,
+                     fill = treatment)) +
+  geom_col() +
+  geom_hline(yintercept=mean(library_df$Library_Size), linetype = "dashed") +
+  labs(x = "Run Accession",
+       y = "Library Size",
+       title = "Library Size by Run Accession",
+       subtitle = "With mean library size line")+
+  scale_fill_brewer(palette = "Set2")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+```
+
+```{r histogram}
+#| fig-width: 16
+smallest_group_size <- metadata %>%
+    dplyr::count(treatment)%>%
+    summarise(min_group_size = min(n)) %>%
+    dplyr::pull(min_group_size)
+
+genes_expressed <- (assay(dds) >= 10) %>%
+  rowSums(.) %>%
+  as.data.frame(.)%>%
+  rownames_to_column(.)
+  
+colnames(genes_expressed) <- c("Genes","Count")
+
+genes_expressed <- genes_expressed %>%
+  mutate(keep_gene = ifelse(Count >= smallest_group_size, "Filtered", "Discarded"))
+
+ggplot(data = genes_expressed, aes(x = Count, fill = keep_gene))+
+  geom_histogram(bins = length(files_path)+1)+
+  scale_fill_brewer(palette = "Paired")+
+  labs(x = "Sample Count",
+       y = "Number of genes",
+       title = "Count of genes expressed in number of samples",
+       fill = "Filtering Status")+
+  scale_x_continuous(breaks = seq(0, length(files_path), by = 1))
+```
+
+```{r pre_filtering}
+keep <- rowSums(counts(dds) >= 10) >= smallest_group_size
+dds <- dds[keep, ]
+levels_treatment <- levels(dds$treatment)
+```
+
+After filtering for counts >= 10 in at least `{r} smallest_group_size` samples (smallest group size) `{r} prettyNum(sum(keep), big.mark =",")` genes remained (`{r} 100*signif(sum(keep)/nrow(txi$counts), digits=3)`%)
+
+```{r differential_expression_analysis}
+dds <- DESeq(dds)
+
+vsd <- vst(dds, blind = FALSE)
+```
+
+```{r pheatmap}
+#| fig-width: 12
+#| fig-height: 8
+sampleDists <- dist(t(assay(vsd)))
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(vsd$treatment, vsd$sample, sep="-")
+colnames(sampleDistMatrix) <- NULL
+
+colors <- colorRampPalette( rev(brewer.pal(9, "Oranges")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows = sampleDists,
+         clustering_distance_cols = sampleDists,
+         main = "Sample-to-Sample Distances",
+         col = colors)
+```
+
+
+```{r}
+plotDispEsts(dds)
+
+plotPCA(vsd, intgroup = "treatment") +
+  theme_minimal() +
+  ggtitle("PCA Plot of Samples")
+```
+
+```{r create_empty_results_list}
+results <- list()
+results_shrink <- list()
+results_shrink_df <- list()
+degs <- list()
+```
+
+```{r populate_results}
+
+FDR_threshold <- 0.05
+lfc_threshold <- 1
+
+reference_list <- levels(dds$treatment)
+for (i in seq_len(length(reference_list) - 1)) {
+  for(comparison in DESeq2::resultsNames(dds)[-1]){
+    results[[comparison]] <- DESeq2::results(dds, name = comparison)
+
+    results_shrink[[comparison]] <- DESeq2::lfcShrink(
+      dds,
+      coef = comparison,
+      type = "apeglm"
+    )
+
+    results_shrink_df[[comparison]] <- as.data.frame(results_shrink[[comparison]]) %>%
+      tibble::rownames_to_column("gene_id") %>%
+      arrange(padj)
+    
+    results_shrink_df[[comparison]]$symbol <- mapIds(org.Hs.eg.db,
+      keys = results_shrink_df[[comparison]]$gene_id,
+      column = "SYMBOL",
+      keytype = "ENSEMBL",
+      multiVals = "first"
+    )
+
+    results_shrink_df[[comparison]]$gene_name <- mapIds(org.Hs.eg.db,
+      keys = results_shrink_df[[comparison]]$gene_id,
+      column = "GENENAME",
+      keytype = "ENSEMBL",
+      multiVals = "first"
+    )
+
+    degs[[comparison]] <- results_shrink_df[[comparison]] %>%
+      filter(padj < FDR_threshold & abs(log2FoldChange) > lfc_threshold)
+
+  }
+  keep <- dds$treatment != reference_list[i]
+  dds <- dds[,keep]
+  dds$treatment <- droplevels(dds$treatment)
+  if (length(levels(dds$treatment))>1){
+    dds <- DESeq(dds)
+  }
+}
+```
+
+```{r def_extract_deseq_summary}
+extract_deseq_summary <-function(results, alpha =0.05){
+  capture <- capture.output(summary(results, alpha = alpha))
+
+  total_genes <- parse_number(capture[2])
+
+  up_reg <- str_extract_all(capture[4],"\\d+(\\.\\d+)?")%>%
+    unlist %>%
+    as.numeric %>%
+    .[2]
+
+  down_reg <- str_extract_all(capture[5],"\\d+(\\.\\d+)?")%>%
+    unlist %>%
+    as.numeric %>%
+    .[2]
+
+  outliers <- str_extract_all(capture[6],"\\d+(\\.\\d+)?")%>%
+    unlist %>%
+    as.numeric %>%
+    .[2]
+
+  low_counts <- str_extract_all(capture[7],"\\d+(\\.\\d+)?")%>%
+    unlist %>%
+    as.numeric %>%
+    .[2]
+
+  summary_df <- list(
+    "total_genes" = total_genes,
+    "up_regulated" = up_reg,
+    "up_regulated_percent" = up_reg/total_genes,
+    "down_regulated" = down_reg,
+    "down_regulated_percent" = down_reg/total_genes,
+    "outliers" = outliers,
+    "outliers_percent" = outliers/total_genes,
+    "low_counts" = low_counts,
+    "low_counts_percent" = low_counts/total_genes
+  )
+  return(summary_df)
+}
+```
+
+```{r}
+
+```
+
+## 3. DEG analysis of pairwise comparisons
+::: {.panel-tabset group="treatment"}
+
+```{r print_summary}
+#| echo: false
+#| output: asis
+
+
+for (name in names(results)) {
+  formated_name <- name %>%
+    str_remove("^treatment_") %>%
+    str_replace_all("_", " ")
+  
+  cat("###", formated_name, "\n\n")
+
+  deseq_summary <- extract_deseq_summary(results[[name]])
+
+  deseq_summary_shrink <- extract_deseq_summary(results_shrink[[name]])
+
+  cat(paste0("**Total genes:** ", deseq_summary_shrink$total_genes,"\n\n"))
+
+  cat(paste0("**Up regulated:** ",
+    deseq_summary_shrink$up_regulated,
+    " (",
+    formatC(signif(deseq_summary_shrink$up_regulated_percent, digits=3), digits=3, format="fg", flag="#"),
+    "%)",
+    "\n\n")
+  )
+
+  cat(paste0("**Down regulated:** ",
+    deseq_summary_shrink$down_regulated,
+    " (",
+    formatC(signif(deseq_summary_shrink$down_regulated_percent, digits=3), digits=3, format="fg", flag="#"),
+    "%)",
+    "\n\n")
+  )
+
+  cat(paste0("**Outliers:** ",
+    deseq_summary_shrink$outliers,
+    " (",
+    formatC(signif(deseq_summary_shrink$outliers_percent, digits=3), digits=3, format="fg", flag="#"),
+    "%)",
+    "\n\n")
+  )
+
+  cat(paste0("**Low counts:** ",
+    deseq_summary_shrink$low_counts,
+    " (",
+    formatC(signif(deseq_summary_shrink$low_counts_percent, digits=3), digits=3, format="fg", flag="#"),
+    "%)",
+    "\n\n")
+  )
+
+  cat("\n\n")
+}
+```
+
+:::
+
+```{r upset_plot}
+#| fig-width: 16
+ven_data <- list()
+for (name in names(results_shrink_df)){
+  gene_vector  <- results_shrink_df[[name]] %>%
+    drop_na(padj) %>%
+    dplyr::pull(gene_id)
+
+  ven_data[[name]] <- gene_vector 
+}
+all_genes <- unique(unlist(ven_data))
+
+ven_matrix <- sapply(ven_data, function(x) all_genes %in% x)
+ven_df <- as.data.frame(ven_matrix)
+rownames(ven_df) <- all_genes
+names(ven_df) <- names(ven_df)%>%
+        str_remove("^treatment_") %>%
+        str_replace_all("_", " ")
+
+
+upset_plot <-  upset(data = ven_df,
+        intersect = names(ven_df),
+        intersections='all',
+        set_sizes = FALSE,
+        width_ratio=0.2,
+        height_ratio=0.8,
+        sort_sets = FALSE,
+        name = "",
+        base_annotations=list(
+          'Intersection size'=intersection_size(
+              counts=TRUE,
+              mapping=aes(fill='bars_color'),
+              text_colors=c(
+                on_background='black', on_bar='black'
+            )
+          )+
+          scale_fill_brewer(palette = "Paired", guide='none')+
+          ylab('Gene count')+
+          theme(axis.title.y = element_text(size = 18, ,vjust=0.5),
+          axis.title.y.right = element_text(size = 18, vjust=0.5, margin = margin(l = 10)))+
+          scale_y_continuous(position = 'right')
+        ),
+        wrap=TRUE,
+        matrix=(
+            intersection_matrix(
+                geom=geom_point(
+                    shape='square',
+                    size=8,
+                ),
+                segment=geom_segment(
+                  color = "#1f78b4",
+                  linewidth = 1.2
+                ),
+                outline_color = list(active = "#1f78b4", inactive = NA)             
+            )
+        )+
+        scale_color_manual(
+            values=c('TRUE'='#1f78b4', 'FALSE'='grey'),
+            guide = 'none'       
+            ),
+        themes = upset_default_themes(text = element_text(size = 15))
+  )+
+  ggtitle('Overlap between all genes')
+
+ven_data_2 <- list()
+for (name in names(results_shrink_df)){
+  gene_vector  <- results_shrink_df[[name]] %>%
+    drop_na(padj) %>%
+    filter(padj <=0.05)%>%
+    dplyr::pull(gene_id)
+
+  ven_data_2[[name]] <- gene_vector 
+}
+all_genes_2 <- unique(unlist(ven_data_2))
+
+ven_matrix_2 <- sapply(ven_data_2, function(x) all_genes_2 %in% x)
+ven_df_2 <- as.data.frame(ven_matrix_2)
+rownames(ven_df_2) <- all_genes_2
+names(ven_df_2) <- names(ven_df_2)%>%
+        str_remove("^treatment_") %>%
+        str_replace_all("_", " ")
+
+
+upset_plot_2 <-  upset(data = ven_df_2,
+        intersect = names(ven_df_2),
+        intersections='all',
+        set_sizes = FALSE,
+        width_ratio=0.2,
+        height_ratio=0.8,
+        sort_sets = FALSE,
+        name = "",
+        base_annotations=list(
+          'Intersection size'=intersection_size(
+              counts=TRUE,
+              mapping=aes(fill='bars_color'),
+              text_colors=c(
+                on_background='black', on_bar='black'
+            )
+          )+
+          scale_fill_brewer(palette = "Paired", guide='none')+
+          ylab('DEGs count')+
+          theme(axis.title.y = element_text(size = 18, ,vjust=0.5))+
+          scale_y_continuous(position = 'right')  
+        ),
+        wrap=TRUE,
+        matrix=(
+            intersection_matrix(
+                geom=geom_point(
+                    shape='square',
+                    size=8
+                ),
+                segment=geom_segment(
+                  color = "#1f78b4",
+                  linewidth = 1.2
+                ),
+                outline_color = list(active = "#1f78b4", inactive = NA)           
+            )
+        )+
+            scale_color_manual(
+            values=c('TRUE'='#1f78b4', 'FALSE'='grey'),
+            guide = 'none'       
+            ),
+        themes = upset_default_themes(text = element_text(size = 15)),
+        labeller = ggplot2::as_labeller(function(x) '')
+  )+
+  ggtitle('Overlap between DEGs')
+
+upset_plot + upset_plot_2
+```
+
+## Plots
+
+::: {.panel-tabset group="treatment"}
+
+```{r ma_plot}
+#| echo: false
+#| output: asis
+#| fig-width: 16
+#| fig-height: 10
+
+for (name in names(results)) {
+  formated_name <- name %>%
+    str_remove("^treatment_") %>%
+    str_replace_all("_", " ")
+  
+  cat("###", formated_name, "\n\n")
+  
+  
+  cat("\n\n")
+  cat("#### MA Plot\n\n")
+
+  volcano_data <- results_shrink_df[[name]] %>%
+    mutate(deg = case_when(
+      padj <= FDR_threshold & log2FoldChange > lfc_threshold ~ "Upregulated",
+      padj <= FDR_threshold & log2FoldChange < -lfc_threshold ~ "Downregulated",
+      TRUE ~ "Not-significant"
+      )
+    ) %>%
+    mutate(significant = case_when(
+      padj <= FDR_threshold ~"Significant",
+      padj > FDR_threshold ~"Non-significant",
+      is.na(padj) & !is.na(pvalue) ~ "Low normalized count",
+      TRUE ~ "Outlier"
+      )
+    ) %>%
+    mutate(y_display = case_when(
+      log2FoldChange > 4 ~ 4,
+      log2FoldChange < -4 ~ -4,
+      TRUE ~ log2FoldChange
+    ),
+    shape_type = case_when(
+      
+      log2FoldChange > 4 ~ "upper",
+      log2FoldChange < -4 ~ "lower",
+      TRUE ~ "normal"
+    )
+  )
+
+  ma_plot <- ggplot(volcano_data, aes(x = baseMean, y = log2FoldChange, color = significant, alpha = significant)) +
+    geom_point(data = subset(volcano_data, shape_type == "normal"), 
+              size = 2) +
+    geom_point(data = subset(volcano_data, shape_type == "upper"),
+              shape = 17, size = 2.5) +  # upward triangle
+    geom_point(data = subset(volcano_data, shape_type == "lower"),
+             shape = 6, size = 2.5) + 
+    scale_x_log10() +
+    theme_minimal() +
+    labs(x = expression(log[10]~"(Mean of Normalized Counts)"), y = expression("Shrunken"~log[2]~"Fold Change"))+
+    ylim(c(-5, 5))+
+    theme(legend.title = element_blank(),
+          legend.position = "top")+
+    scale_color_manual(values = c("Significant" = "red", "Non-significant" = "grey", "Low normalized count" = "#895129", "Outlier" = "#8B008B"))+
+    scale_alpha_manual(values = c("Significant" = 0.8, "Non-significant" = 0.3, "Low normalized count" = 0.5, "Outlier" = 0.5))+
+    guides(color = guide_legend(override.aes = list(shape = 16)))
+
+ 
+
+  volcano_plot <- ggplot(volcano_data, aes(x = log2FoldChange, y = -log10(padj), color = deg, alpha = deg)) +
+    geom_point(size = 2) +
+    scale_color_manual(values = c("Upregulated" = "red", 
+                                  "Downregulated" = "#6960dbff", 
+                                  "Not significant" = "gray")) +
+    scale_alpha_manual(values = c("Upregulated" = 0.8, 
+                                  "Downregulated" = 0.8, 
+                                  "Not significant" = 0.5))+
+    geom_vline(xintercept = c(-lfc_threshold, lfc_threshold), linetype = "dashed") +
+    geom_hline(yintercept = -log10(FDR_threshold), linetype = "dashed") +
+    labs(x = expression(log[2]~"Fold Change"),
+        y = expression(-log[10]~"Adjusted P-value")) +
+    theme_minimal()+
+    theme(legend.title = element_blank(),
+          legend.position = "top")
+
+  
+
+  print(ma_plot)
+
+  cat("\n\n")
+  cat("#### Volcano Plot\n\n")
+
+  print(volcano_plot)
+
+  cat("\n\n")
+}
+
+```
+
+:::
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

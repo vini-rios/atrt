@@ -1,0 +1,12 @@
+# Quality control thresholds
+trimming_required:
+  min_mean_quality: 30
+  max_adapter_content: 5
+
+# Reference data
+reference_version: "114"  # Ensembl version
+
+# Resource allocation
+threads:
+  fastqc: 1
+  salmon: 4

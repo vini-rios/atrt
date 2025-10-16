@@ -1,0 +1,21 @@
+name: quarto-report
+
+channels:
+  - bioconda
+  - conda-forge
+
+dependencies:
+  - python
+  - quarto
+  - ipykernel
+  - r-base
+  - r-essentials
+  - r-pheatmap
+  - r-languageserver
+  - radian 
+  - r-httpgd
+  - bioconductor-genomicfeatures
+  - bioconductor-deseq2
+  - bioconductor-txdbmaker
+  - bioconductor-tximport
+
