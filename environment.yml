@@ -16,7 +16,10 @@ dependencies:
 - radian 
 - r-httpgd
 - r-tidyverse
+- r-patchwork
+- r-complexupset
 - bioconductor-genomicfeatures
 - bioconductor-deseq2
 - bioconductor-txdbmaker
 - bioconductor-tximport
+- bioconductor-org.hs.eg.db
