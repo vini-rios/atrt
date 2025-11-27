@@ -18,11 +18,11 @@ geo_df  <- exprs(gset)
 geo_df <- rownames_to_column(as.data.frame(geo_df), var = "ID")
 
 # Raw files from GEO
-files_dir <- "GSE70678/files/"
+files_dir <- "data/raw/GSE70678/files/"
 
-getGEOSuppFiles("GSE70678")
+getGEOSuppFiles("GSE70678", baseDir = "data/raw/")
 
-untar("GSE70678/GSE70678_RAW.tar", exdir = files_dir)
+untar("data/raw/GSE70678/GSE70678_RAW.tar", exdir = files_dir)
 
 raw_data <- ReadAffy(celfile.path = files_dir)
 
@@ -100,9 +100,9 @@ microarray_df <- annot_table %>%
 
 # Birks dataset,
 # Raw data since it was normalized using the gcRMA algorithm instead of mas5
-files_dir_2 <- "GSE28026/files/"
-getGEOSuppFiles("GSE28026")
-untar("GSE28026/GSE28026_RAW.tar", exdir = files_dir_2)
+files_dir_2 <- "data/raw/GSE28026/files/"
+getGEOSuppFiles("GSE28026", baseDir = "data/raw/")
+untar("data/raw/GSE28026/GSE28026_RAW.tar", exdir = files_dir_2)
 raw_birks <- ReadAffy(celfile.path = files_dir_2)
 
 mas5_birks <- mas5(raw_birks, sc = 100)
@@ -126,9 +126,9 @@ write_csv(microarray_df, "data/microarray/microarray_dataset.csv")
 
 
 # Wang GSE65132
-files_dir_3 <- "GSE65132/files/"
-getGEOSuppFiles("GSE65132")
-untar("GSE65132/GSE65132_RAW.tar", exdir = files_dir_3)
+files_dir_3 <- "data/raw/GSE65132/files/"
+getGEOSuppFiles("GSE65132", baseDir = "data/raw/")
+untar("data/raw/GSE65132/GSE65132_RAW.tar", exdir = files_dir_3)
 raw_wang <- ReadAffy(celfile.path = files_dir_3)
 mas5_wang <- mas5(raw_wang, sc = 100)
 
@@ -154,9 +154,9 @@ wang_df <- annot_table %>%
 write_csv(wang_df, "data/microarray/wang.csv")
 
 # Amani GSE86574
-files_dir_4 <- "GSE86574/files/"
-getGEOSuppFiles("GSE86574")
-untar("GSE86574/GSE86574_RAW.tar", exdir = files_dir_4)
+files_dir_4 <- "data/raw/GSE86574/files/"
+getGEOSuppFiles("GSE86574", baseDir = "data/raw/")
+untar("data/raw/GSE86574/GSE86574_RAW.tar", exdir = files_dir_4)
 raw_amani <- ReadAffy(celfile.path = files_dir_4)
 mas5_amani <- mas5(raw_amani, sc = 100)
 

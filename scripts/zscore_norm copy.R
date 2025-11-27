@@ -93,6 +93,7 @@ top_amani <- collapsed_amani[top_genes,]
 
 # Random Forest
 model <- randomForest(t(top_microarray), metadata$clusters, ntree = 500)
+saveRDS(model, file = "models/trained/random_forest.rds")
 
 # Wang data, Random forest
 predictions_wang <- predict(model, t(top_wang))
@@ -147,6 +148,7 @@ model_xgb <- xgb.train(
   evals = list(train = dtrain),
   verbose = 1
 )
+saveRDS(model_xgb, file = "models/trained/xgboost.rds")
 cluster_names <- levels(metadata$clusters)
 
 pred_prob_wang <- predict(model_xgb, dtest_wang, type = "prob")
@@ -184,6 +186,7 @@ x_test_wang <- t(top_wang)
 x_test_amani <- t(top_amani)
 
 pls_model <- plsr(y_train_dummy ~ x_train, ncomp = 3)
+saveRDS(pls_model, file = "models/trained/plsda.rds")
 
 pred_scores_wang <- predict(pls_model, newdata = x_test_wang, ncomp = 3)
 test_proj_wang <- predict(pls_model, newdata = x_test_wang, type = "scores")
@@ -263,6 +266,7 @@ cv_fit <- cv.glmnet(
   alpha = 1,  # Lasso for feature selection
   nfolds = 5  # Use 5-fold CV due to small sample size
 )
+saveRDS(cv_fit, file = "models/trained/glmnet.rds")
 coefs <- coef(cv_fit, s = "lambda.min")
 
 x_test_wang <- t(top_wang)
