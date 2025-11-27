@@ -152,3 +152,30 @@ wang_df <- annot_table %>%
 
 
 write_csv(wang_df, "data/microarray/wang.csv")
+
+# Amani GSE86574
+files_dir_4 <- "GSE86574/files/"
+getGEOSuppFiles("GSE86574")
+untar("GSE86574/GSE86574_RAW.tar", exdir = files_dir_4)
+raw_amani <- ReadAffy(celfile.path = files_dir_4)
+mas5_amani <- mas5(raw_amani, sc = 100)
+
+amani_mas5_df <- exprs(mas5_amani)
+
+amani_mas5_df <- rownames_to_column(as.data.frame(amani_mas5_df), var = "ID")
+
+colnames(amani_mas5_df) <- str_remove(colnames(amani_mas5_df), "_.*")
+
+amani_df <- annot_table %>%
+  mutate(
+    Gene = sapply(`Gene symbol`, function(x) {
+      strsplit(x, split = "///")[[1]][1]
+    }),
+    Gene_alt = sapply(`Gene symbol`, function(x) {
+      strsplit(x, split = "///")[[1]][2]
+    })
+  ) %>%
+  select("ID", "Gene", "Gene_alt") %>%
+  inner_join(., amani_mas5_df, by = "ID")
+
+write_csv(amani_df, "data/microarray/amani.csv")

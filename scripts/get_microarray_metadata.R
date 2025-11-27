@@ -195,3 +195,8 @@ metadata <- rbind(meta_pascal_tibble, meta_birks_final) %>%
   )
 
 write_csv(metadata, "data/microarray/microarray_metadata.csv")
+
+# Amani GSE86574
+meta_amani <- getGEO("GSE86574", GSEMatrix = FALSE)
+
+meta_amani_tibble <- get_metadata_geo(meta_amani)
