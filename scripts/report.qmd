@@ -87,7 +87,6 @@ txi <- tximport(
   files = files_path,
   type = "salmon",
   tx2gene = tx2gene,
-  countsFromAbundance = "lengthScaledTPM",
   ignoreTxVersion = TRUE
 )
 ```
@@ -102,7 +101,7 @@ metadata <- readr::read_tsv(paste0("data/", params$project, ".metadata.clean"))
 dds <- DESeqDataSetFromTximport(
   txi = txi,
   colData = metadata,
-  design = ~ treatment  
+  design = ~treatment  
 )
 ```
 
@@ -115,6 +114,7 @@ library_df <- data.frame(Library_Size = library_sizes) %>%
   rownames_to_column(.) %>%
   left_join(x=., y = metadata, by = c("rowname" = "run_accession")) %>%
   mutate(sample_treatment = paste(sample,treatment))
+  
 
 ggplot(data = library_df,
        mapping = aes(x = rowname,
@@ -192,7 +192,7 @@ pheatmap(sampleDistMatrix,
 ```{r}
 plotDispEsts(dds)
 
-plotPCA(vsd, intgroup = "treatment") +
+plotPCA(vsd, intgroup = "treatment", pcsToUse = 2:3) +
   theme_minimal() +
   ggtitle("PCA Plot of Samples")
 ```
