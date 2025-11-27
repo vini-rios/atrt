@@ -55,12 +55,12 @@ microarray_corrected <- combined_corrected [, 1:micro_iloc]
 wang_corrected <- combined_corrected[, (micro_iloc + 1):wang_iloc]
 amani_corrected <- combined_corrected[, (wang_iloc + 1):amani_iloc]
 
-# Globally Scaled batch corrected datasets
-combined_scaled <- t(scale(t(combined_corrected)))
+# Globally Scaled batch corrected datasets not used 
+# combined_scaled <- t(scale(t(combined_corrected)))
 
-microarray_scaled <- combined_scaled[, 1:micro_iloc]
-wang_scaled <- combined_scaled[, (micro_iloc + 1):wang_iloc]
-amani_scaled <- combined_scaled[, (wang_iloc + 1):amani_iloc]
+# microarray_scaled <- combined_scaled[, 1:micro_iloc]
+# wang_scaled <- combined_scaled[, (micro_iloc + 1):wang_iloc]
+# amani_scaled <- combined_scaled[, (wang_iloc + 1):amani_iloc]
 
 # Collapsing multiple probes linked to the same gene
 # to the one with highest variance
@@ -100,7 +100,7 @@ predictions_wang <- predict(model, t(top_wang))
 pred_prob_wang <- predict(model, t(top_wang), type = "prob")
 confidence_wang <- apply(pred_prob_wang, 1, max)
 results_wang <- data.frame(
-  sample = colnames(wang_scaled),
+  sample = colnames(wang_corrected),
   dataset = "wang",
   technology = "microarray",
   random_forest_cluster = predictions_wang,
@@ -114,7 +114,7 @@ predictions_amani <- predict(model, t(top_amani))
 pred_prob_amani <- predict(model, t(top_amani), type = "prob")
 confidence_amani <- apply(pred_prob_amani, 1, max)
 results_amani <- data.frame(
-  sample = colnames(amani_scaled),
+  sample = colnames(amani_corrected),
   dataset = "amani",
   technology = "microarray",
   random_forest_cluster = predictions_amani,
@@ -159,7 +159,7 @@ dtest_amani <- xgb.DMatrix(data = t(top_amani))
 pred_prob_amani <- predict(model_xgb, dtest_amani, type = "prob")
 confidence_amani <- apply(pred_prob_amani, 1, max)
 xgb_results_amani <- data.frame(
-  sample = colnames(amani_scaled),
+  sample = colnames(amani_corrected),
   xgboost_cluster = cluster_names[apply(pred_prob_amani, 1, which.max)],
   xgboost_confidence = apply(pred_prob_amani, 1, max)
 )
@@ -167,7 +167,7 @@ xgb_results_amani <- data.frame(
 
 
 xgb_results_wang <- data.frame(
-  sample = colnames(wang_scaled),
+  sample = colnames(wang_corrected),
   xgboost_cluster = cluster_names[apply(pred_prob_wang, 1, which.max)],
   xgboost_confidence = apply(pred_prob_wang, 1, max)
 )
@@ -273,7 +273,7 @@ x_test_wang <- t(top_wang)
 pred_probs_glmnet <- predict(cv_fit, x_test_wang, type = "response", s = "lambda.min")
 
 glmnet_results_wang <- data.frame(
-  sample = colnames(wang_scaled),
+  sample = colnames(wang_corrected),
   glmnet_cluster = colnames(pred_probs_glmnet)[apply(pred_probs_glmnet, 1, which.max)],
   glmnet_confidence = apply(pred_probs_glmnet, 1, max)
 )
@@ -283,7 +283,7 @@ x_test_amani <- t(top_amani)
 pred_probs_glmnet <- predict(cv_fit, x_test_amani, type = "response", s = "lambda.min")
 
 glmnet_results_amani <- data.frame(
-  sample = colnames(amani_scaled),
+  sample = colnames(amani_corrected),
   glmnet_cluster = colnames(pred_probs_glmnet)[apply(pred_probs_glmnet, 1, which.max)],
   glmnet_confidence = apply(pred_probs_glmnet, 1, max)
 )

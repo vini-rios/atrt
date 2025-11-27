@@ -2,6 +2,8 @@ library(affy)
 library(GEOquery)
 library(tidyverse)
 
+source("scripts/utils.R")
+
 # Here we use GEOquery to download and process microarray data from both
 # datasets (GSE70678, GSE28026)
 # We also compare the processed raw data to the processed data from GEO
@@ -18,35 +20,48 @@ geo_df  <- exprs(gset)
 geo_df <- rownames_to_column(as.data.frame(geo_df), var = "ID")
 
 # Raw files from GEO
-files_dir <- "data/raw/GSE70678/files/"
+raw_geo <- function(gse) {
+  files_dir <- paste0("data/raw/", gse, "/files")
 
-getGEOSuppFiles("GSE70678", baseDir = "data/raw/")
+  getGEOSuppFiles(gse, baseDir = "data/raw/")
 
-untar("data/raw/GSE70678/GSE70678_RAW.tar", exdir = files_dir)
+  untar(paste0("data/raw/", gse, "/", gse, "_RAW.tar"), exdir = files_dir)
 
-raw_data <- ReadAffy(celfile.path = files_dir)
+  raw_data <- ReadAffy(celfile.path = files_dir)
+
+  raw_data
+}
+
+raw_data <- raw_geo("GSE70678")
 
 # Normalize data with mas5
-mas5_data <- mas5(raw_data, sc = 100)
+mas5_norm <- function(raw_data) {
+  mas5_data <- mas5(raw_data, sc = 100)
 
-mas5_df <- exprs(mas5_data)
+  mas5_df <- exprs(mas5_data)
 
-mas5_df <- rownames_to_column(as.data.frame(mas5_df), var = "ID")
+  mas5_df <- rownames_to_column(as.data.frame(mas5_df), var = "ID")
 
-colnames(mas5_df) <- str_remove(colnames(mas5_df), "_.*")
+  colnames(mas5_df) <- str_remove(colnames(mas5_df), "_.*")
+
+  mas5_df
+}
+
+mas5_df <- mas5_norm(raw_data)
 
 # Rounding to match processed files from GEO
-mas5_df[, 2:50] <- lapply(mas5_df[, 2:50], function(x) round(x, 1))
+round_df <- mas5_df
+round_df[, 2:50] <- lapply(round_df[, 2:50], function(x) round(x, 1))
 
 # Comparing both = FALSE
-all(mas5_df == geo_df)
+all(round_df == geo_df)
 
 # Finding the issue
 
 # First sample and microarray_names have the same mismatches?
-matches_sample <- mas5_df[, 1] == geo_df[, 1]
+matches_sample <- round_df[, 1] == geo_df[, 1]
 
-matches_names <- mas5_df["ID"] == geo_df["ID"]
+matches_names <- round_df["ID"] == geo_df["ID"]
 
 miss_match_names <- which(matches_names == FALSE)
 miss_match_sample <- which(matches_sample == FALSE)
@@ -54,7 +69,7 @@ miss_match_sample <- which(matches_sample == FALSE)
 all(miss_match_names == miss_match_sample)
 
 # Yes. Is this the same pattern across the df?
-matches <- mas5_df == geo_df
+matches <- round_df == geo_df
 
 all_matches <- rowSums(matches) == dim(matches)[2]
 
@@ -66,116 +81,48 @@ length(miss_match_all)
 
 
 # Yes, 1118 rows are out of order
-mas5_df <- mas5_df %>%
+round_df <- round_df %>%
   arrange(ID)
 
 geo_df <- geo_df %>%
   arrange(ID)
 
-all(mas5_df == geo_df)
+all(round_df == geo_df)
 
 # Sorting both dataframes fixed the issue and both are identical.
 # Raw data + mas5 normalization perfectly matches the GEO processed file.
 
-# GPL570 ID to gene symbol
-gpl_id <- annotation(gset)
-gpl <- getGEO(gpl_id, AnnotGPL = TRUE)
+# Annotate table (utils.R)
+pascal <- annot_geo("GSE70678", mas5_df)
 
-annot_table <- gpl@dataTable@table
+write_csv(pascal, "data/microarray/pascal.csv")
 
-# Final df
-microarray_df <- annot_table %>%
-  mutate(
-    Gene = sapply(`Gene symbol`, function(x) {
-      strsplit(x, split = "///")[[1]][1]
-    }),
-    Gene_alt = sapply(`Gene symbol`, function(x) {
-      strsplit(x, split = "///")[[1]][2]
-    })
-  ) %>%
-  select("ID", "Gene", "Gene_alt") %>%
-  inner_join(., geo_df, by = "ID")
+process_dataset <- function(gse) {
+  output <- raw_geo(gse) %>%
+    mas5_norm(.) %>%
+    annot_geo(gse, .)
 
-
-
-# Birks dataset,
+  output
+}
+# Birks "GSE28026",
 # Raw data since it was normalized using the gcRMA algorithm instead of mas5
-files_dir_2 <- "data/raw/GSE28026/files/"
-getGEOSuppFiles("GSE28026", baseDir = "data/raw/")
-untar("data/raw/GSE28026/GSE28026_RAW.tar", exdir = files_dir_2)
-raw_birks <- ReadAffy(celfile.path = files_dir_2)
+birks_gse <- "GSE28026"
 
-mas5_birks <- mas5(raw_birks, sc = 100)
+birks <- process_dataset(birks_gse)
 
-birks_mas5_df <- exprs(mas5_birks)
+write_csv(birks, "data/microarray/birks.csv")
 
-birks_mas5_df <- rownames_to_column(as.data.frame(birks_mas5_df), var = "ID")
-
-colnames(birks_mas5_df) <- str_remove(colnames(birks_mas5_df), "_.*")
-
-birks_mas5_df[, 2:19] <- lapply(birks_mas5_df[, 2:19], function(x) round(x, 1))
-
-# Adding birks data set to microarray_df
-dim(microarray_df)[1] == dim(birks_mas5_df)[1]
-microarray_df <- microarray_df %>%
-  inner_join(., birks_mas5_df, by = "ID")
-
-dim(microarray_df)
-
-write_csv(microarray_df, "data/microarray/microarray_dataset.csv")
-
-
+# Datasets below were also normalized using different methods
 # Wang GSE65132
-files_dir_3 <- "data/raw/GSE65132/files/"
-getGEOSuppFiles("GSE65132", baseDir = "data/raw/")
-untar("data/raw/GSE65132/GSE65132_RAW.tar", exdir = files_dir_3)
-raw_wang <- ReadAffy(celfile.path = files_dir_3)
-mas5_wang <- mas5(raw_wang, sc = 100)
+wang_gse <- "GSE65132"
 
-wang_mas5_df <- exprs(mas5_wang)
+wang <- process_dataset(wang_gse)
 
-wang_mas5_df <- rownames_to_column(as.data.frame(wang_mas5_df), var = "ID")
-
-colnames(wang_mas5_df) <- str_remove(colnames(wang_mas5_df), "_.*")
-
-wang_df <- annot_table %>%
-  mutate(
-    Gene = sapply(`Gene symbol`, function(x) {
-      strsplit(x, split = "///")[[1]][1]
-    }),
-    Gene_alt = sapply(`Gene symbol`, function(x) {
-      strsplit(x, split = "///")[[1]][2]
-    })
-  ) %>%
-  select("ID", "Gene", "Gene_alt") %>%
-  inner_join(., wang_mas5_df, by = "ID")
-
-
-write_csv(wang_df, "data/microarray/wang.csv")
+write_csv(wang, "data/microarray/wang.csv")
 
 # Amani GSE86574
-files_dir_4 <- "data/raw/GSE86574/files/"
-getGEOSuppFiles("GSE86574", baseDir = "data/raw/")
-untar("data/raw/GSE86574/GSE86574_RAW.tar", exdir = files_dir_4)
-raw_amani <- ReadAffy(celfile.path = files_dir_4)
-mas5_amani <- mas5(raw_amani, sc = 100)
+amani_gse <- "GSE86574"
 
-amani_mas5_df <- exprs(mas5_amani)
+amani <- process_dataset(amani_gse)
 
-amani_mas5_df <- rownames_to_column(as.data.frame(amani_mas5_df), var = "ID")
-
-colnames(amani_mas5_df) <- str_remove(colnames(amani_mas5_df), "_.*")
-
-amani_df <- annot_table %>%
-  mutate(
-    Gene = sapply(`Gene symbol`, function(x) {
-      strsplit(x, split = "///")[[1]][1]
-    }),
-    Gene_alt = sapply(`Gene symbol`, function(x) {
-      strsplit(x, split = "///")[[1]][2]
-    })
-  ) %>%
-  select("ID", "Gene", "Gene_alt") %>%
-  inner_join(., amani_mas5_df, by = "ID")
-
-write_csv(amani_df, "data/microarray/amani.csv")
+write_csv(amani, "data/microarray/amani.csv")
