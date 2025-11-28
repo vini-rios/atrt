@@ -71,18 +71,37 @@ remove_empty_probes <- function(target, gene_df) {
   output
 }
 
-colapse_probes_gene<- function(target, gse = NULL, gpl = NULL) {
+colapse_probes_gene<- function(target, gse = NULL, gpl = NULL, method = "variance") {
   target_df <- as.data.frame(target) %>%
     tibble::rownames_to_column("ID")
   annot_target <- annot_geo(target_df, gse = gse, gpl = gpl)
-  collapsed_target <- annot_target %>%
-    mutate(variance = rowVars(as.matrix(across(where(is.numeric))))) %>%
-    group_by(Gene) %>%
-    slice_max(order_by = variance, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
-    arrange(desc(variance)) %>%
-    column_to_rownames("Gene") %>%
-    dplyr::select(-variance, -ID, -"Gene_alt")
+  if (method == "variance") {
+    collapsed_target <- annot_target %>%
+      mutate(variance = rowVars(as.matrix(across(where(is.numeric))))) %>%
+      group_by(Gene) %>%
+      slice_max(order_by = variance, n = 1, with_ties = FALSE) %>%
+      ungroup() %>%
+      arrange(desc(variance)) %>%
+      column_to_rownames("Gene") %>%
+      dplyr::select(-variance, -ID, -"Gene_alt")
+  } else if (method == "mean") {
+    collapsed_target <- annot_target %>%
+      group_by(Gene) %>%
+      summarize(across(where(is.numeric), mean)) %>%
+      ungroup() %>%
+      column_to_rownames("Gene")
+  } else if (method == "max") {
+    collapsed_target <- annot_target %>%
+      mutate(mean = rowMeans(as.matrix(across(where(is.numeric))))) %>%
+      group_by(Gene) %>%
+      slice_max(order_by = mean, n = 1, with_ties = FALSE) %>%
+      ungroup() %>%
+      column_to_rownames("Gene") %>%
+      dplyr::select(-mean, -ID, -"Gene_alt")
+  } else {
+    stop("method not recognized")
+  }
+
 
   collapsed_target
 }

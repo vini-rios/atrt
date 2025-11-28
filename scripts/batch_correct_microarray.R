@@ -136,6 +136,10 @@ pb_corrected_gene <- remove_empty_probes(pascal_birks, pascal)
 
 pb_corrected <- limma::removeBatchEffect(pb_corrected_gene, batch = batch_pb)
 
-pb_corrected_col <- colapse_probes_gene(pb_corrected, gpl = "GPL570")
+pb_corrected_var <- colapse_probes_gene(pb_corrected, gpl = "GPL570", method = "variance")
+pb_corrected_mean <- colapse_probes_gene(pb_corrected, gpl = "GPL570", method = "mean")
+pb_corrected_max <- colapse_probes_gene(pb_corrected, gpl = "GPL570", method = "max")
 
-saveRDS(pb_corrected_col, "data/processed/microarray/batch/original_study/collapsed.rds")
+saveRDS(pb_corrected_var, "data/processed/microarray/batch/original_study/var_collapsed.rds")
+saveRDS(pb_corrected_mean, "data/processed/microarray/batch/original_study/mean_collapsed.rds")
+saveRDS(pb_corrected_max, "data/processed/microarray/batch/original_study/max_collapsed.rds")
