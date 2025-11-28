@@ -64,7 +64,7 @@ batch_corr <- list(
   amani_corrected = amani_corrected
 )
 
-path_batch_corr <- "data/processed/batch/"
+path_batch_corr <- "data/processed/microarray/batch/"
 
 named_list_save_rds(batch_corr, path = path_batch_corr)
 
@@ -82,7 +82,7 @@ batch_collapsed <- list(
   batch_collapsed_wang = collapsed_wang,
   batch_collapsed_amani = collapsed_amani
 )
-path_batch_collapsed <- "data/processed/batch/collapsed/"
+path_batch_collapsed <- "data/processed/microarray/batch/collapsed/"
 
 named_list_save_rds(batch_collapsed, path = path_batch_collapsed)
 
@@ -101,7 +101,7 @@ scaled_batch_corr <- list(
   wang_scaled = wang_scaled,
   amani_scaled = amani_scaled
 )
-path_scaled_batch_corr <- "data/processed/batch/scaled/"
+path_scaled_batch_corr <- "data/processed/microarray/batch/scaled/"
 
 named_list_save_rds(scaled_batch_corr, path = path_scaled_batch_corr)
 
@@ -119,7 +119,7 @@ scaled_batch_collapsed <- list(
   scaled_collapsed_amani = scaled_collapsed_amani
 )
 
-path_scaled_batch_collapsed <- "data/processed/batch/scaled/collapsed/"
+path_scaled_batch_collapsed <- "data/processed/microarray/batch/scaled/collapsed/"
 
 named_list_save_rds(scaled_batch_collapsed, path = path_scaled_batch_collapsed)
 
@@ -138,4 +138,4 @@ pb_corrected <- limma::removeBatchEffect(pb_corrected_gene, batch = batch_pb)
 
 pb_corrected_col <- colapse_probes_gene(pb_corrected, gpl = "GPL570")
 
-saveRDS(pb_corrected_col, "data/processed/batch/original_study/collapsed.rds")
+saveRDS(pb_corrected_col, "data/processed/microarray/batch/original_study/collapsed.rds")

@@ -2,26 +2,10 @@ library(GEOquery)
 library(tidyverse)
 library(janitor)
 library(readxl)
-# Here we create the metadata table
-# We use mainly the GEO samples information.
 
-# We need to use mmc2.xlsx
-# In order to determine dkfz sample names from Birks dataset (GSE28026)
-# And to compare our findings to the original study
-# mmc2.xlsx is a suplemental material:
-# Table S1. Overview of All ATRTs Used in the Study and Analyses, Related to Figure 1
-# From DOI: 10.1016/j.ccell.2016.02.001
-
-# We could have extracted almost all information from mmc2.xlsx
-# Only the dkfz_ATRT_# to GSM# couldn't be extracted.
-# But we chose to use the information provided by GEO as a learning exercise.
-
-
-# Creating metadata table
-meta_pascal <- getGEO("GSE70678", GSEMatrix = FALSE)
-meta_birks <- getGEO("GSE28026", GSEMatrix = FALSE)
-
-get_metadata_geo <- function(gset_meta) {
+# Function to extract metadata from GEO GSE number e.g.,"GSE70678"
+get_metadata_geo <- function(gset_number) {
+  gset_meta <- getGEO(gset_number, GSEMatrix = FALSE)
   metadata <- purrr::map(gset_meta@gsms,
     function(x) {
       x@header$characteristics_ch1
@@ -47,12 +31,14 @@ get_metadata_geo <- function(gset_meta) {
   metadata
 }
 
-meta_pascal_tibble <- get_metadata_geo(meta_pascal) %>%
+# Steps below are using only information available in GEO
+# Creating metadata table
+meta_pascal <- get_metadata_geo("GSE70678") %>%
   select("ind", "gender", "tumor_location", "values") %>%
   dplyr::rename(sample_name = values) %>%
   mutate(project = "pascal")
 
-meta_birks_tibble <- get_metadata_geo(meta_birks) %>%
+meta_birks <- get_metadata_geo("GSE28026") %>%
   mutate(project = "birks") %>%
   mutate(tumor_location = case_when(
     tumor_location == "posterior fossa" ~ "infratentorial",
@@ -76,20 +62,41 @@ meta_birks_tibble <- get_metadata_geo(meta_birks) %>%
     gender,
     age_at_diagnosis_months,
     age_at_diagnosis_years,
-    tumor_location
+    tumor_location,
+    project
   )
 
+# Merging data and exporting
+merge_pascal <- meta_pascal %>%
+  select(-sample_name)
+
+merge_birks <- meta_birks %>%
+  select(ind, gender, tumor_location, project)
+
+original_metadata <- rbind(merge_pascal, merge_birks)
+
+write.csv(original_metadata, file = "data/raw/microarray/original_metadata.csv")
+
+# From this point onwards we require a supplemental file.
+# We need to use mmc2.xlsx
+# In order to determine dkfz sample names from Birks dataset (GSE28026)
+# And to compare our findings to the original study
+# mmc2.xlsx is a suplemental material:
+# Table S1. Overview of All ATRTs Used in the Study and Analyses, Related to Figure 1
+# From DOI: 10.1016/j.ccell.2016.02.001
+
+# We could have extracted almost all information from mmc2.xlsx
+# Only the dkfz_ATRT_# to GSM# couldn't be extracted.
+# But we chose to use the information provided by GEO as a learning exercise.
+
 # Features is a unique identifier to link dkfz sample name to GSM
-length(unique(meta_birks_tibble$features)) == dim(meta_birks_tibble)[1]
-
-
+length(unique(meta_birks$features)) == dim(meta_birks)[1]
 
 # We need the following to determine the dkfz_ATRT_# of the Birks dataset
 # and to validate our fiding to the original.
 
 # The dkfz_ATRT_# to GSM# from the 26 samples with
 # both methylation data and microarray data are found in the GEO
-# So we could determine the 1500 DEGs for clustering without mmc2.xlsx
 
 # Suplemental data from Pascal Table S1 DOI: 10.1016/j.ccell.2016.02.001
 # Trying to use download.file() will return HTTP status was '403 Forbidden'
@@ -153,12 +160,13 @@ sup_material_names <- sup_data %>%
 # The following sample names are in mmc2.xlsx.
 # They have subrouping_based_on_affymetrix_gene_expression_data
 # But are not present in GSE70678
-sup_material_names$sample_name[!(sup_material_names$sample_name %in% meta_pascal_tibble$sample_name)]
+sup_material_names$sample_name[!(sup_material_names$sample_name %in% meta_pascal$sample_name)]
 
 # 25 samples
-sum(!(sup_material_names$sample_name %in% meta_pascal_tibble$sample_name))
+sum(!(sup_material_names$sample_name %in% meta_pascal$sample_name))
 
-
+# Due to theses inconsistencies we can't be certain in our comparison
+# to the original study
 
 # Final birks metadata process
 meta_birks_final <- sup_data %>%
@@ -171,7 +179,7 @@ meta_birks_final <- sup_data %>%
     sep = "_"
   )
   ) %>%
-  left_join(., meta_birks_tibble, by = "features") %>%
+  left_join(., meta_birks, by = "features") %>%
   select(
     sample_name,
     ind,
@@ -181,7 +189,7 @@ meta_birks_final <- sup_data %>%
   mutate(project = "birks")
 
 # Combining both metadata
-metadata <- rbind(meta_pascal_tibble, meta_birks_final) %>%
+metadata <- rbind(meta_pascal, meta_birks_final) %>%
   dplyr::rename("gsm" = ind) %>%
   left_join(.,
     sup_data %>%

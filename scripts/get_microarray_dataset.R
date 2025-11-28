@@ -7,9 +7,10 @@ source("scripts/utils.R")
 # Functions
 # Download raw data from GEO
 raw_geo <- function(gse) {
-  files_dir <- paste0("data/raw/", gse, "/files")
+  base_dir <- "data/raw/microarray/"
+  files_dir <- paste0(base_dir, gse, "/files")
 
-  getGEOSuppFiles(gse, baseDir = "data/raw/")
+  getGEOSuppFiles(gse, baseDir = base_dir)
 
   untar(paste0("data/raw/", gse, "/", gse, "_RAW.tar"), exdir = files_dir)
 
