@@ -4,22 +4,8 @@ library(tidyverse)
 
 source("scripts/utils.R")
 
-# Here we use GEOquery to download and process microarray data from both
-# datasets (GSE70678, GSE28026)
-# We also compare the processed raw data to the processed data from GEO
-# from GSE70678 to verify our analysis.
-# Final output is "data/microarray/microarray_dataset.csv"
-
-# Processed files from GEO 
-gset <- getGEO("GSE70678", GSEMatrix = TRUE, getGPL = FALSE)
-
-gset <- gset[[1]]
-
-geo_df  <- exprs(gset)
-
-geo_df <- rownames_to_column(as.data.frame(geo_df), var = "ID")
-
-# Raw files from GEO
+# Functions
+# Download raw data from GEO
 raw_geo <- function(gse) {
   files_dir <- paste0("data/raw/", gse, "/files")
 
@@ -32,9 +18,7 @@ raw_geo <- function(gse) {
   raw_data
 }
 
-raw_data <- raw_geo("GSE70678")
-
-# Normalize data with mas5
+# Mas5 normalization
 mas5_norm <- function(raw_data) {
   mas5_data <- mas5(raw_data, sc = 100)
 
@@ -47,6 +31,34 @@ mas5_norm <- function(raw_data) {
   mas5_df
 }
 
+# Download, mas5 normalization, annotate
+process_dataset_mas5 <- function(gse) {
+  output <- raw_geo(gse) %>%
+    mas5_norm(.) %>%
+    annot_geo(., gse = gse)
+
+  output
+}
+
+# Here we use GEOquery to download and process microarray data from both
+# datasets (GSE70678, GSE28026)
+# We also compare the processed raw data to the processed data from GEO
+# from GSE70678 to verify our analysis.
+
+
+# Processed files from GEO 
+gset <- getGEO("GSE70678", GSEMatrix = TRUE, getGPL = FALSE)
+
+gset <- gset[[1]]
+
+geo_df  <- exprs(gset)
+
+geo_df <- rownames_to_column(as.data.frame(geo_df), var = "ID")
+
+# Raw files from GEO
+raw_data <- raw_geo("GSE70678")
+
+# Normalize data with mas5
 mas5_df <- mas5_norm(raw_data)
 
 # Rounding to match processed files from GEO
@@ -92,37 +104,30 @@ all(round_df == geo_df)
 # Sorting both dataframes fixed the issue and both are identical.
 # Raw data + mas5 normalization perfectly matches the GEO processed file.
 
-# Annotate table (utils.R)
-pascal <- annot_geo("GSE70678", mas5_df)
+# Annotate table utils.R
+pascal <- annot_geo(mas5_df, gse = "GSE70678")
 
-write_csv(pascal, "data/microarray/pascal.csv")
+write_csv(pascal, "data/processed/microarray/mas5/pascal.csv")
 
-process_dataset <- function(gse) {
-  output <- raw_geo(gse) %>%
-    mas5_norm(.) %>%
-    annot_geo(gse, .)
-
-  output
-}
 # Birks "GSE28026",
 # Raw data since it was normalized using the gcRMA algorithm instead of mas5
 birks_gse <- "GSE28026"
 
-birks <- process_dataset(birks_gse)
+birks <- process_dataset_mas5(birks_gse)
 
-write_csv(birks, "data/microarray/birks.csv")
+write_csv(birks, "data/processed/microarray/mas5/birks.csv")
 
 # Datasets below were also normalized using different methods
 # Wang GSE65132
 wang_gse <- "GSE65132"
 
-wang <- process_dataset(wang_gse)
+wang <- process_dataset_mas5(wang_gse)
 
-write_csv(wang, "data/microarray/wang.csv")
+write_csv(wang, "data/processed/microarray/mas5/wang.csv")
 
 # Amani GSE86574
 amani_gse <- "GSE86574"
 
-amani <- process_dataset(amani_gse)
+amani <- process_dataset_mas5(amani_gse)
 
-write_csv(amani, "data/microarray/amani.csv")
+write_csv(amani, "data/processed/microarray/mas5/amani.csv")
