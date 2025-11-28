@@ -75,7 +75,7 @@ merge_birks <- meta_birks %>%
 
 original_metadata <- rbind(merge_pascal, merge_birks)
 
-write.csv(original_metadata, file = "data/raw/microarray/original_metadata.csv")
+write.csv(original_metadata, file = "data/raw/microarray/metadata/original_geo_metadata.csv")
 
 # From this point onwards we require a supplemental file.
 # We need to use mmc2.xlsx
@@ -202,9 +202,12 @@ metadata <- rbind(meta_pascal, meta_birks_final) %>%
     by = "sample_name"
   )
 
-write_csv(metadata, "data/microarray/microarray_metadata.csv")
+write_csv(metadata, "data/raw/microarray/metadata/mmc2_metadata.csv")
+
+# Wang GSE65132
+meta_wang <- get_metadata_geo("GSE65132")
+write_csv(meta_wang, file = "data/raw/microarray/metadata/wang_metadata.csv")
 
 # Amani GSE86574
-meta_amani <- getGEO("GSE86574", GSEMatrix = FALSE)
-
-meta_amani_tibble <- get_metadata_geo(meta_amani)
+meta_amani <- get_metadata_geo("GSE86574")
+write_csv(meta_amani, file = "data/raw/microarray/metadata/amani_metadata.csv")
