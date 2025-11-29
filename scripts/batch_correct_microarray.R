@@ -122,24 +122,3 @@ scaled_batch_collapsed <- list(
 path_scaled_batch_collapsed <- "data/processed/microarray/batch/scaled/collapsed/"
 
 named_list_save_rds(scaled_batch_collapsed, path = path_scaled_batch_collapsed)
-
-## Original study
-pascal_birks <- cbind(expr_pascal, expr_birks)
-
-batch_pb <- c(
-  rep("pascal", ncol(expr_pascal)),
-  rep("birks", ncol(expr_birks))
-)
-
-## Collapsing genes then correcting for batch effect
-pb_corrected_gene <- remove_empty_probes(pascal_birks, pascal)
-
-pb_corrected <- limma::removeBatchEffect(pb_corrected_gene, batch = batch_pb)
-
-pb_corrected_var <- colapse_probes_gene(pb_corrected, gpl = "GPL570", method = "variance")
-pb_corrected_mean <- colapse_probes_gene(pb_corrected, gpl = "GPL570", method = "mean")
-pb_corrected_max <- colapse_probes_gene(pb_corrected, gpl = "GPL570", method = "max")
-
-saveRDS(pb_corrected_var, "data/processed/microarray/batch/original_study/var_collapsed.rds")
-saveRDS(pb_corrected_mean, "data/processed/microarray/batch/original_study/mean_collapsed.rds")
-saveRDS(pb_corrected_max, "data/processed/microarray/batch/original_study/max_collapsed.rds")

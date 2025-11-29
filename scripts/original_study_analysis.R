@@ -86,6 +86,9 @@ plot_pca(top_scaled_original, metadata)
 # From the top 1500 variance genes 189 changed with the batch correction
 sum(!rownames(top_var_genes) %in% rownames(top_scaled_original))
 
+top_1500_var_genes <- rownames(top_scaled_original)
+write.csv(top_1500_var_genes, file = "results/top_1500_var_genes.csv")
+
 top_var_scaled_corrected <- t(scale(t(top_scaled_original)))
 
 # Hierarchical Clustering
@@ -191,6 +194,8 @@ contrast_matrix <- makeContrasts(
 fit2 <- contrasts.fit(fit, contrast_matrix)
 fit2 <- eBayes(fit2)
 
-top_all <- topTable(fit2, adjust.method="fdr", number=Inf)
+top_all <- topTable(fit2, adjust.method="fdr", number=Inf) %>%
+  arrange(desc(F)) %>%
+  filter(F > 20)
 
-write.csv(top_all, file = "results/degs_original.csv")
+write.csv(top_all, file = "results/degs_original_f20.csv")

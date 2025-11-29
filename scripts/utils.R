@@ -77,6 +77,7 @@ colapse_probes_gene<- function(target, gse = NULL, gpl = NULL, method = "varianc
   annot_target <- annot_geo(target_df, gse = gse, gpl = gpl)
   if (method == "variance") {
     collapsed_target <- annot_target %>%
+      drop_na(Gene) %>%
       mutate(variance = rowVars(as.matrix(across(where(is.numeric))))) %>%
       group_by(Gene) %>%
       slice_max(order_by = variance, n = 1, with_ties = FALSE) %>%
@@ -86,12 +87,14 @@ colapse_probes_gene<- function(target, gse = NULL, gpl = NULL, method = "varianc
       dplyr::select(-variance, -ID, -"Gene_alt")
   } else if (method == "mean") {
     collapsed_target <- annot_target %>%
+      drop_na(Gene) %>%
       group_by(Gene) %>%
       summarize(across(where(is.numeric), mean)) %>%
       ungroup() %>%
       column_to_rownames("Gene")
   } else if (method == "max") {
     collapsed_target <- annot_target %>%
+      drop_na(Gene) %>%
       mutate(mean = rowMeans(as.matrix(across(where(is.numeric))))) %>%
       group_by(Gene) %>%
       slice_max(order_by = mean, n = 1, with_ties = FALSE) %>%
