@@ -23,39 +23,44 @@ This analysis is fully automated using a Snakemake pipeline to ensure reproducib
 ![Snakemake-dags](/results/figures/dag.png)
 
 ### Quick start - Installation & Execution
-
-#### Option A
+#### Option A - Docker
 ```bash
 # 1. Clone
 git clone https://github.com/vini-rios/atrt
 cd atrt
 
-# 2. Setup environment
-bash scripts/setup_project.sh
+# 2. Build docker image
+docker build -t atrt .
 
 # 3. Run analysis
-snakemake --cores all --use-conda
+docker run --rm \
+  -v "$(pwd)":/app \
+  -w /app \
+  atrt \
+  /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && conda activate atrt && snakemake --cores all --use-conda"
 ```
-#### Option B - Docker
+#### Option B
 ```bash
 # 1. Clone
 git clone https://github.com/vini-rios/atrt
 cd atrt
 
-# 2. Setup environment
-bash scripts/setup_project.sh
+# 2. Create environment
+conda env create -f environment.yml
+conda activate atrt
 
 # 3. Run analysis
 snakemake --cores all --use-conda
 ```
-### Requirements
 
-* Linux / macOS (or Docker)
 
-* R >= 4.0
+### Data - GEO accessions
+Original datasets: GSE70678, GSE28026
+External datasets: GSE86574, GSE67851
 
-* Snakemake >= 6.0
+### References
 
-* Conda (for environment.yml) or Docker
+Atypical Teratoid/Rhabdoid Tumors Are Comprised of Three Epigenetic Subgroups with Distinct Enhancer Landscapes
+Johann, Pascal D. et al.
+Cancer Cell, Volume 29, Issue 3, 379 - 393
 
-* Python 3.8+ for some pipeline steps (Snakemake)

@@ -1,4 +1,4 @@
-name: atrt2
+name: atrt
 
 channels:
 - conda-forge

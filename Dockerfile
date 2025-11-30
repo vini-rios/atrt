@@ -23,6 +23,7 @@ COPY environment.yml /tmp/environment.yml
 RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 RUN conda env create -f /tmp/environment.yml
+RUN conda config --set channel_priority strict
 
 # Make scripts executable
 COPY scripts/ scripts/
