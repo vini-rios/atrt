@@ -1,4 +1,4 @@
-name: atrt
+name: atrt2
 
 channels:
 - conda-forge
@@ -6,35 +6,5 @@ channels:
 
 dependencies:
 - python
-- snakemake-minimal
-- quarto
-- ipykernel
-- r-base >= 4
-- r-pheatmap
-- r-languageserver
-- radian 
-- r-httpgd
-- r-tidyverse
-- r-patchwork
-- r-complexupset
-- r-umap
-- r-janitor
-- bioconductor-genomicfeatures
-- bioconductor-deseq2
-- bioconductor-txdbmaker
-- bioconductor-tximport
-- bioconductor-org.hs.eg.db
-- bioconductor-apeglm
-- bioconductor-edger
-- bioconductor-limma >3.6
-- bioconductor-geoquery
-- bioconductor-affy
-- bioconductor-hgu133plus2cdf
-- bioconductor-sva
-- bioconductor-illuminahumanmethylation450kanno.ilmn12.hg19
-- bioconductor-minfi
-- bioconductor-dmrcate
-- conda-forge::r-pls
-- conda-forge::r-randomforest
-- conda-forge::r-xgboost
-- conda-forge::r-glmnet
+- snakemake
+
