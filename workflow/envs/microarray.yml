@@ -1,0 +1,23 @@
+name: microarray
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base >= 4
+  - r-pheatmap
+  - r-tidyverse
+  - r-patchwork
+  - r-complexupset
+  - r-umap
+  - r-janitor
+  - bioconductor-geoquery
+  - bioconductor-affy
+  - bioconductor-hgu133plus2cdf
+  - bioconductor-org.hs.eg.db
+  - bioconductor-minfi
+  - bioconductor-limma >3.6
+  - conda-forge::r-pls
+  - conda-forge::r-randomforest
+  - conda-forge::r-xgboost
+  - conda-forge::r-glmnet

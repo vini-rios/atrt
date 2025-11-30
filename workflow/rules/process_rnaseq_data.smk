@@ -14,26 +14,6 @@ PROJECT = ["PRJNA565377"]
 OUTPUT_DIR = "data/"
 
 
-rule all:
-    input:
-        expand(
-            os.path.join(OUTPUT_DIR, "raw", "{project}_download_complete.flag"),
-            project=PROJECT,
-        ),
-        expand(
-            os.path.join(OUTPUT_DIR, "raw", "{project}_all_files_verified.flag"),
-            project=PROJECT,
-        ),
-        expand("results/fastp/{project}_fastp_complete.flag", project=PROJECT),
-        "references/homo_sapiens.gtf.gz",
-        [
-            target
-            for project in PROJECT
-            for target in get_all_quantification_outputs(project)
-        ],
-        expand(os.path.join(OUTPUT_DIR, "{project}.metadata.clean"), project=PROJECT),
-
-
 rule get_fastq_list:
     output:
         os.path.join(OUTPUT_DIR, "{project}.files_to_download.tsv"),
@@ -43,7 +23,7 @@ rule get_fastq_list:
     log:
         os.path.join("logs", "get_fastq_list_{project}.log"),
     conda:
-        "envs/core.yml"
+        "../envs/core.yml"
     shell:
         """
         scripts/get_fastq_ena.sh -l {params.project} --outputdir {params.output_dir}
@@ -61,7 +41,7 @@ checkpoint download_fastq:
     log:
         os.path.join("logs", "download_fastq_{project}.log"),
     conda:
-        "envs/core.yml"
+        "../envs/core.yml"
     shell:
         """
         scripts/get_fastq_ena.sh --retry {params.project} --outputdir {params.output_dir}
@@ -78,7 +58,7 @@ rule check_download:
     log:
         os.path.join("logs", "check_download_{project}.log"),
     conda:
-        "envs/core.yml"
+        "../envs/core.yml"
     script:
         "../scripts/check_download.py"
 
@@ -96,7 +76,7 @@ rule fastp_paired_end:
     log:
         os.path.join("logs", "{project}", "fastp_{base}.log"),
     conda:
-        "envs/fastp.yml"
+        "../envs/fastp.yml"
     threads: 4
     shell:
         """
@@ -123,7 +103,7 @@ rule fastp_single_end:
     log:
         os.path.join("logs", "{project}", "fastp_{base}.log"),
     conda:
-        "envs/fastp.yml"
+        "../envs/fastp.yml"
     threads: 4
     shell:
         """
@@ -147,7 +127,7 @@ rule fastp_project_complete:
     log:
         os.path.join("logs", "{project}", "fastp_project_complete.log"),
     conda:
-        "envs/core.yml"
+        "../envs/core.yml"
     shell:
         """
         touch {output}
@@ -164,7 +144,7 @@ rule download_references:
     log:
         os.path.join("logs", "download_reference.log"),
     conda:
-        "envs/core.yml"
+        "../envs/core.yml"
     shell:
         """
         mkdir -p references 
@@ -184,7 +164,7 @@ rule build_salmon_index:
     log:
         os.path.join("logs", "build_salmon_index.log"),
     conda:
-        "envs/salmon.yml"
+        "../envs/salmon.yml"
     threads: 4
     shell:
         """
@@ -212,7 +192,7 @@ rule salmon_quant_single:
     log:
         os.path.join("logs", "{project}/{base}" "salmon_quant_single.log"),
     conda:
-        "envs/salmon.yml"
+        "../envs/salmon.yml"
     threads: 4
     shell:
         """
@@ -232,7 +212,7 @@ rule salmon_quant_paired:
     log:
         os.path.join("logs", "{project}/{base}" "salmon_quant_paired.log"),
     conda:
-        "envs/salmon.yml"
+        "../envs/salmon.yml"
     threads: 4
     shell:
         """
@@ -250,7 +230,7 @@ rule get_metadata_from_ena:
     output:
         os.path.join(OUTPUT_DIR, "{project}.metadata"),
     conda:
-        "envs/core.yml"
+        "../envs/core.yml"
     shell:
         """
         wget --output-document="{output}" "https://www.ebi.ac.uk/ena/portal/api/links/study?accession={wildcards.project}&result=read_run"

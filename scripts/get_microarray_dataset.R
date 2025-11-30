@@ -1,6 +1,7 @@
+library(tidyverse)
 library(affy)
 library(GEOquery)
-library(tidyverse)
+
 
 source("scripts/utils.R")
 

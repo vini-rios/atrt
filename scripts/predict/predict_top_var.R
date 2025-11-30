@@ -1,3 +1,10 @@
+library(randomForest)
+library(xgboost)
+library(pls)
+library(glmnet)
+library(tidyverse)
+library(ggplot2)
+
 # Load models
 random_forest <- readRDS("models/trained/top1500_var/random_forest.rds")
 xgboost <- readRDS("models/trained/top1500_var/xgboost.rds")
