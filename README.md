@@ -20,7 +20,11 @@ Using RNA microarray data, I developed a machine learning pipeline to:
 
 ### Project workflow
 This analysis is fully automated using a Snakemake pipeline to ensure reproducibility from start to finish.
+<div align="center">
+
 ![Snakemake-dags](/results/figures/dag.png)
+
+</div>
 
 ### Quick start - Installation & Execution
 #### Option A - Docker
