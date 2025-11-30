@@ -25,6 +25,7 @@ RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkg
 RUN conda env create -f /tmp/environment.yml
 
 # Make scripts executable
+COPY scripts/ scripts/
 RUN chmod +x scripts/*.sh
 
 # Default command
